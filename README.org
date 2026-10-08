@@ -1,0 +1,31 @@
+#+title: Dockerised Container
+
+* Layout
+- =flake.nix= / =flake.lock= :: the whole toolchain (Emacs, C/C++, Rust,
+  Python, language servers, CLI tools), pinned by the lock file. Add or remove
+  tools here, then =nix flake update= to bump nixpkgs.
+- =Dockerfile= :: a minimal Debian base that bootstraps single-user Nix and
+  builds the flake into =/nix/var/nix/profiles/editor-env=. apt is only used
+  for the installer's own dependencies.
+- =doom-config/= :: Doom config, copied in and synced at build time.
+
+* Per-project build environments
+Nix and nix-direnv are available inside the container, so a project can carry
+its own =flake.nix= with a =devShell= and an =.envrc= containing:
+
+#+begin_src sh
+use flake
+#+end_src
+
+Run =direnv allow= once; Doom's =:tools direnv= then loads the shell for every
+buffer in that project.
+
+* Next steps
+- Doom's packages are still fetched by straight.el at build time. Look at
+  https://github.com/marienz/nix-doom-emacs-unstraightened to move them into
+  the flake too.
+- =/nix= lives in the container layer, so devShells fetched at runtime are lost
+  on =run --rm=. A shared store (volume, or the host's nix-daemon) would fix
+  that.
+- Pin =debian:bookworm-slim= by digest, or build the image itself with
+  =dockerTools= from the flake.

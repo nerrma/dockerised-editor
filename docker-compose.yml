@@ -1,0 +1,57 @@
+services:
+  doom:
+    build:
+      context: .
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    image: doom-editor
+    container_name: doom-editor
+    # Required for interactive TUI (emacs -nw) via `run` / `exec` / `attach`.
+    # Note: `docker compose up` (attached) only streams logs and never
+    # forwards stdin to the container (upstream design, plus its
+    # watch/detach menu steals keystrokes). Use:
+    #   ./scripts/run.sh            # interactive, preferred
+    #   docker compose up -d && docker compose exec doom emacs -nw
+    stdin_open: true
+    tty: true
+    volumes:
+      - /home/sina/org:/home/editor/org
+      - /home/sina/projects:/home/editor/projects
+      # `run --rm` throws the container away, so any state written at
+      # runtime needs a volume or it is gone at the end of the session.
+      #
+      # This Doom build ignores XDG and keeps everything under
+      # ~/.config/emacs/.local: `cache` (projectile's known projects,
+      # savehist, recentf, undo history, LSP sessions), `state` (logs), and
+      # a few runtime dirs under `etc`.
+      #
+      # Never mount ~/.config/emacs/.local or .local/etc as a whole: `doom
+      # sync` writes the generated init (etc/@/init.<emacs-version>.el) there
+      # at build time, and a named volume is only seeded from the image when
+      # first created — after any rebuild it would keep serving the old init
+      # and Doom would look uninstalled.
+      - doom-cache:/home/editor/.config/emacs/.local/cache
+      - doom-state:/home/editor/.config/emacs/.local/state
+      - doom-forge:/home/editor/.config/emacs/.local/etc/forge
+      - doom-transient:/home/editor/.config/emacs/.local/etc/transient
+      - doom-workspaces:/home/editor/.config/emacs/.local/etc/workspaces
+      # Toolchain download caches (cargo crates, pip/uv wheels, npm).
+      - cargo-registry:/home/editor/.cargo/registry
+      - tool-cache:/home/editor/.cache
+      # Host credentials, if you want magit/forge and :tools llm to work
+      # against your own accounts. Uncomment deliberately — this exposes
+      # your ssh key and API tokens to anything running in the container.
+      # - /home/sina/.gitconfig:/home/editor/.gitconfig:ro
+      # - /home/sina/.ssh:/home/editor/.ssh:ro
+      # - /home/sina/.authinfo:/home/editor/.authinfo:ro
+    working_dir: /home/editor
+
+volumes:
+  doom-cache:
+  doom-forge:
+  doom-transient:
+  doom-workspaces:
+  doom-state:
+  cargo-registry:
+  tool-cache:
